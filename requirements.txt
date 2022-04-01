@@ -1,0 +1,7 @@
+py-cord
+requests
+PyNaCl
+Pillow
+youtube-dl
+mpmath
+SQLAlchemy
