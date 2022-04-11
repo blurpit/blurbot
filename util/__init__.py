@@ -124,9 +124,6 @@ class ConfigList(list):
         else:
             self.append(value)
 
-def load_token():
-    with open('data/client_secret.txt', 'r') as secret:
-        return secret.read().strip()
 
 def render_egg(egg, msg:Message):
     if egg.startswith('#eval '):

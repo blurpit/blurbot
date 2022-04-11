@@ -1,3 +1,4 @@
+import os
 import random
 import re
 import sys
@@ -8,7 +9,7 @@ from discord import Intents
 from discord.ext.commands import Bot
 
 import cogs
-from util import Config, load_token, render_egg, get_presence
+from util import Config, render_egg, get_presence
 
 
 class Blurbot(Bot):
@@ -69,4 +70,4 @@ class Blurbot(Bot):
 
 if __name__ == '__main__':
     blurbot = Blurbot()
-    blurbot.run(load_token())
+    blurbot.run(os.environ['BLURBOT_SECRET'])
