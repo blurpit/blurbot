@@ -32,18 +32,11 @@ class TYDLSource(PCMVolumeTransformer):
         self.url = data.get('url')
         self.uploader = data.get('uploader')
         self.duration_seconds = data.get('duration')
+        self.duration = duration_string(self.duration_seconds)
 
     @property
-    def duration(self):
-        if not self.duration_seconds:
-            return '0:0'
-        second = self.duration_seconds % 60
-        minute = self.duration_seconds // 60
-        hour = self.duration_seconds // (60 * 60)
-        if hour > 0:
-            return '{}:{:02}:{:02}'.format(hour, minute, second)
-        else:
-            return '{:02}:{:02}'.format(minute, second)
+    def video_info(self):
+        return '"**{}**" by {}. ({})'.format(self.title, self.uploader, self.duration)
 
     @classmethod
     async def create(cls, query, *, loop=None, stream=False):
@@ -57,3 +50,15 @@ class TYDLSource(PCMVolumeTransformer):
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(FFmpegPCMAudio(filename, **_ffmpeg_options), data=data)
+
+
+def duration_string(seconds):
+    if not seconds:
+        return '0:0'
+    second = seconds % 60
+    minute = seconds // 60 % 60
+    hour = seconds // 3600
+    if hour > 0:
+        return '{}:{:02}:{:02}'.format(hour, minute, second)
+    else:
+        return '{:02}:{:02}'.format(minute, second)

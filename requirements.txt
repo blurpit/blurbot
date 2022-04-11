@@ -1,7 +1,10 @@
-py-cord
 requests
 PyNaCl
 Pillow
 youtube-dl
 mpmath
 SQLAlchemy
+matplotlib
+numpy
+py-cord[voice] @ git+https://github.com/Pycord-Development/pycord.git
+stopit
