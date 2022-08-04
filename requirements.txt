@@ -6,5 +6,6 @@ mpmath
 SQLAlchemy
 matplotlib
 numpy
-py-cord[voice] @ git+https://github.com/Pycord-Development/pycord.git
+py-cord[voice]
 stopit
+git+https://github.com/blurpit/pycalculator.git
