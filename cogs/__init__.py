@@ -4,9 +4,11 @@ import sys
 import traceback
 from io import BytesIO
 
+import calc
+import stopit
 from discord import ApplicationContext as AppCtx, Option, Message, Member, VoiceChannel, ButtonStyle, Interaction, \
-    VoiceClient, VoiceState, File, ActivityType, Activity, Status
-from discord.commands import permissions, slash_command, SlashCommandGroup, message_command, user_command
+    VoiceClient, VoiceState, File, ActivityType, Activity, Status, default_permissions, Permissions
+from discord.commands import slash_command, SlashCommandGroup, message_command, user_command
 from discord.ext.commands import Cog
 from discord.ui import Button, View
 from discord.utils import get
@@ -22,30 +24,38 @@ def setup(bot):
     bot.add_cog(Garf(bot))
     bot.add_cog(TicTacToe(bot))
     bot.add_cog(Voice(bot))
+    bot.add_cog(Calc(bot))
 
 
 class Admin(Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def cog_before_invoke(self, ctx:AppCtx):
+        if ctx.author.id not in self.bot.owner_ids:
+            raise PermissionError('This command is only available to blurbot admins.')
+
     @slash_command(name='ping')
-    @permissions.is_owner()
+    @default_permissions(administrator=True)
     async def ping(self, ctx:AppCtx):
         """ Ping the bot. """
         await ctx.respond('Pong!')
 
     @slash_command(name='kill')
-    @permissions.is_owner()
+    @default_permissions(administrator=True)
     async def kill(self, ctx:AppCtx):
         """ Kill the bot. """
         print('Killing...\n')
         await ctx.respond('Goodnight... 😴💤')
         await self.bot.close()
 
-    cfg = SlashCommandGroup('cfg', 'get/set config')
+    cfg = SlashCommandGroup(
+        'cfg',
+        'get/set config',
+        default_member_permissions=Permissions(administrator=True)
+    )
 
     @cfg.command(name='get')
-    @permissions.is_owner()
     async def cfg_get(
         self, ctx:AppCtx,
         key:Option(str, "Enter config key.")
@@ -58,7 +68,6 @@ class Admin(Cog):
         await ctx.respond('Key: `{}`\nType: `{}` ```{}```'.format(key, type(val), string))
 
     @cfg.command(name='set')
-    @permissions.is_owner()
     async def cfg_set(
         self, ctx:AppCtx,
         key:Option(str, "Enter config key. Use append/remove/removei for list manipulation."),
@@ -71,14 +80,13 @@ class Admin(Cog):
         await ctx.respond('Key: `{}`\nType: `{}` ```{}```'.format(key, type(val), val))
 
     @cfg.command(name='reload')
-    @permissions.is_owner()
     async def cfg_reload(self, ctx:AppCtx):
         """ Reload the configuration from the file. """
         self.bot.cfg.reload()
         await ctx.respond('Config reloaded from `{}`'.format(self.bot.cfg.fp))
 
     @slash_command(name='presence')
-    @permissions.is_owner()
+    @default_permissions(administrator=True)
     async def presence(
         self, ctx:AppCtx,
         activity_type:Option(str, "Enter activity type", choices=["playing", "streaming", "listening", "watching", "competing", "online", "offline", "idle", "dnd"]),
@@ -180,6 +188,8 @@ class TicTacToe(Cog):
     @user_command(name='Play TicTacToe')
     async def tictactoe(self, ctx:AppCtx, user:Member):
         """ Start a game of TicTacToe. """
+        if user.bot:
+            raise ValueError("Tic tac toe AI is broken right now. :/")
         await ctx.respond(
             "{}, it's your turn!".format(ctx.author.mention),
             view=tictactoe.TicTacToe(ctx.author, user, ai_game=user == self.bot.user)
@@ -290,3 +300,68 @@ class Voice(Cog):
             await vc.disconnect()
 
         self.bot.loop.create_task(disconnect_task())
+
+
+class Calc(Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.math_ctx = calc.create_default_context()
+        self.load()
+
+    class TimeoutError(Exception):
+        pass
+
+    def load(self):
+        calc.load_contexts(self.math_ctx, 'data/saved_math.json')
+    def save(self):
+        calc.save_contexts(self.math_ctx, 'data/saved_math.json')
+
+    @slash_command(name='calc', description='Evaluate an expression')
+    async def evaluate(self, ctx:AppCtx, expression:str):
+        await ctx.defer()
+        with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
+            expression = expression.replace(' ', '')
+            result = calc.evaluate(self.math_ctx, expression)
+            if isinstance(result, calc.CustomFunction):
+                self.math_ctx.add(result)
+                self.save()
+
+        if timer.state == timer.TIMED_OUT:
+            raise Calc.TimeoutError("Evaluation took too long.")
+
+        await ctx.respond("> `{}`\n```{}```".format(expression, result))
+
+    @slash_command(name='latex', description='Render an expression as a LaTeX image')
+    async def latex(self, ctx:AppCtx, expression:str):
+        await ctx.defer()
+        with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
+            if expression.startswith('$') and expression.endswith('$'):
+                tex = expression.lstrip('$').rstrip('$')
+            else:
+                tex = calc.latex(self.math_ctx, expression)
+            img = calc.latex_to_image(tex, dpi=self.bot.cfg.calc.latex_dpi)
+
+        if timer.state == timer.TIMED_OUT:
+            raise Calc.TimeoutError("Evaluation took too long.")
+
+        with BytesIO() as bio:
+            img.save(bio, format='png')
+            bio.seek(0)
+            await ctx.respond(file=File(bio, 'tex.png'))
+
+    @slash_command(name='graph', description='Graph a function')
+    async def graph(self, ctx: AppCtx, expression:str, xlow:float=-10, xhigh:float=10, ylow:float=None, yhigh:float=None):
+        await ctx.defer()
+        with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
+            fig = calc.graph(
+                self.math_ctx, expression,
+                xlow, xhigh,
+                ylow, yhigh,
+                tex_title=self.bot.cfg.calc.use_tex_graph_title
+            )
+            bio = calc.savefig_bytesio(fig)
+
+        if timer.state == timer.TIMED_OUT:
+            raise Calc.TimeoutError("Evaluation took too long.")
+
+        await ctx.respond(file=File(bio, 'graph.png'))
