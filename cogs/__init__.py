@@ -352,6 +352,12 @@ class Calc(Cog):
     @slash_command(name='graph', description='Graph a function')
     async def graph(self, ctx: AppCtx, expression:str, xlow:float=-10, xhigh:float=10, ylow:float=None, yhigh:float=None):
         await ctx.defer()
+
+        trimmed = expression.replace(' ', '').lower()
+        if trimmed in self.bot.cfg.calc.meme_graphs:
+            await ctx.respond(self.bot.cfg.calc.meme_graphs[trimmed])
+            return
+
         with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
             fig = calc.graph(
                 self.math_ctx, expression,
