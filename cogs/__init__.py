@@ -5,6 +5,7 @@ import traceback
 from io import BytesIO
 
 import calc
+import requests
 import stopit
 from discord import ApplicationContext as AppCtx, Option, Message, Member, VoiceChannel, ButtonStyle, Interaction, \
     VoiceClient, VoiceState, File, ActivityType, Activity, Status, default_permissions, Permissions
@@ -22,6 +23,7 @@ def setup(bot):
     bot.add_cog(Admin(bot))
     bot.add_cog(Misc(bot))
     bot.add_cog(Garf(bot))
+    bot.add_cog(UrbanDictionary(bot))
     bot.add_cog(TicTacToe(bot))
     bot.add_cog(Voice(bot))
     bot.add_cog(Calc(bot))
@@ -179,6 +181,27 @@ class Garf(Cog):
         await ctx.respond(file=File(BytesIO(comic), filename='comic.gif'))
 
     # TODO: garfield scheduler
+
+
+class UrbanDictionary(Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @slash_command(name='ud')
+    async def ud(self, ctx:AppCtx, term:str):
+        """ Command totally not shamelessly stolen from deadbeef. """
+        data = requests.get('https://api.urbandictionary.com/v0/define?term={}'.format(term)).json()['list']
+        if not data:
+            await ctx.respond("**{}**\nThere are no definitions for this word.".format(term))
+            return
+
+        term = data[0]['word'].strip()
+        definition = data[0]['definition'].strip().replace('[', '').replace(']', '')
+        example = data[0]['example'].strip(' []').replace('[', '').replace(']', '')
+        response = "**{}**\n{}".format(term, definition)
+        if example:
+            response += '\n\n*{}*'.format(example)
+        await ctx.respond(response)
 
 
 class TicTacToe(Cog):
