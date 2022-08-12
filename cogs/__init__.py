@@ -60,7 +60,7 @@ class Admin(Cog):
     @cfg.command(name='get')
     async def cfg_get(
         self, ctx:AppCtx,
-        key:Option(str, "Enter config key.")
+        key:Option(str, 'Enter config key.')
     ):
         """ Get a configuration value. """
         val = self.bot.cfg[key]
@@ -72,8 +72,8 @@ class Admin(Cog):
     @cfg.command(name='set')
     async def cfg_set(
         self, ctx:AppCtx,
-        key:Option(str, "Enter config key. Use append/remove/removei for list manipulation."),
-        val:Option(str, "Enter value to set at the key.")
+        key:Option(str, 'Enter config key. Use append/remove/removei for list manipulation.'),
+        val:Option(str, 'Enter value to set at the key')
     ):
         """ Set a configuration value. """
         val = self.bot.cfg.infer_type(val)
@@ -91,11 +91,12 @@ class Admin(Cog):
     @default_permissions(administrator=True)
     async def presence(
         self, ctx:AppCtx,
-        activity_type:Option(str, "Enter activity type", choices=["playing", "streaming", "listening", "watching", "competing", "online", "offline", "idle", "dnd"]),
-        name:Option(str, "Enter presence text")
+        activity_type:Option(str, 'Enter activity type', choices=['playing', 'streaming', 'listening', 'watching',
+                                                                  'competing', 'online', 'offline', 'idle', 'dnd']),
+        name:Option(str, 'Enter presence text')
     ):
         """ Set the bot's presence. """
-        if activity_type in ('online', 'offline', 'idle', "dnd"):
+        if activity_type in ('online', 'offline', 'idle', 'dnd'):
             await self.bot.change_presence(status=Status[activity_type])
         else:
             activity = Activity(type=ActivityType[activity_type], name=name)
@@ -111,7 +112,7 @@ class Misc(Cog):
     async def owo(self, ctx:AppCtx, msg:Message):
         """ Owoify a message by replacing R and L with W, and adding a random prefix & suffix. """
         if msg.author.bot:
-            raise PermissionError("Cannot use message commands on bots.")
+            raise PermissionError('Cannot use message commands on bots.')
 
         substitution = {'r': 'w', 'l': 'w', 'R': 'W', 'L': 'W', 'no': 'nu', 'has': 'haz',
                         'have': 'haz', 'you': 'uu', ' the ': ' da ', 'The ': ' Da '}
@@ -132,7 +133,7 @@ class Misc(Cog):
     async def spongemock(self, ctx:AppCtx, msg:Message):
         """ Spongemockify a message by randomly capitalizing its letters. """
         if msg.author.bot:
-            raise PermissionError("Cannot use message commands on bots.")
+            raise PermissionError('Cannot use message commands on bots.')
 
         content = ''
         for letter in str(msg.clean_content):
@@ -145,9 +146,9 @@ class Misc(Cog):
     @slash_command(name='roll')
     async def roll(
         self, ctx:AppCtx,
-        rolls:Option(int, "Enter number of rolls to do", required=False, default=1),
-        low:Option(int, "Enter lower bound", required=False, default=1),
-        high:Option(int, "Enter upper bound", required=False, default=6)
+        rolls:Option(int, 'Enter number of rolls to do', required=False, default=1),
+        low:Option(int, 'Enter lower bound', required=False, default=1),
+        high:Option(int, 'Enter upper bound', required=False, default=6)
     ):
         """ Roll random numbers. """
         if low > high:
@@ -162,7 +163,7 @@ class Misc(Cog):
     @slash_command(name='choose')
     async def choose(
         self, ctx:AppCtx,
-        choices:Option(str, description='List choices separated by commas')
+        choices:Option(str, 'List choices separated by commas')
     ):
         """ Choose a random option from a list of choices. """
         choice = random.choice(choices.split(',')).strip()
@@ -188,7 +189,10 @@ class UrbanDictionary(Cog):
         self.bot = bot
 
     @slash_command(name='ud')
-    async def ud(self, ctx:AppCtx, term:str):
+    async def ud(
+        self, ctx:AppCtx,
+        term:Option(str, 'Enter word to define')
+    ):
         """ Command totally not shamelessly stolen from deadbeef. """
         data = requests.get('https://api.urbandictionary.com/v0/define?term={}'.format(term)).json()['list']
         if not data:
@@ -240,8 +244,8 @@ class Voice(Cog):
     @voice.command(name='play')
     async def voice_play(
         self, ctx: AppCtx,
-        query:Option(str, description='Enter a YouTube URL or search query.'),
-        channel:Option(VoiceChannel, description='Voice channel', required=False)
+        query:Option(str, 'Enter a YouTube URL or search query.'),
+        channel:Option(VoiceChannel, 'Voice channel', required=False)
     ):
         """ Play audio from a YouTube video in a voice channel. """
         await ctx.defer()
@@ -339,8 +343,12 @@ class Calc(Cog):
     def save(self):
         calc.save_contexts(self.math_ctx, 'data/saved_math.json')
 
-    @slash_command(name='calc', description='Evaluate an expression')
-    async def evaluate(self, ctx:AppCtx, expression:str):
+    @slash_command(name='calc')
+    async def evaluate(
+        self, ctx:AppCtx,
+        expression:Option(str, 'Enter an expression to evaluate')
+    ):
+        """ Evaluate an expression. """
         await ctx.defer()
         with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
             expression = expression.replace(' ', '')
@@ -354,8 +362,12 @@ class Calc(Cog):
 
         await ctx.respond("> `{}`\n```{}```".format(expression, result))
 
-    @slash_command(name='latex', description='Render an expression as a LaTeX image')
-    async def latex(self, ctx:AppCtx, expression:str):
+    @slash_command(name='latex')
+    async def latex(
+        self, ctx:AppCtx,
+        expression:Option(str, 'Enter an expression, or LaTeX starting and ending with $')
+    ):
+        """ Render an expression as a LaTeX image. """
         await ctx.defer()
         with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
             if expression.startswith('$') and expression.endswith('$'):
@@ -372,8 +384,16 @@ class Calc(Cog):
             bio.seek(0)
             await ctx.respond(file=File(bio, 'tex.png'))
 
-    @slash_command(name='graph', description='Graph a function')
-    async def graph(self, ctx: AppCtx, expression:str, xlow:float=-10, xhigh:float=10, ylow:float=None, yhigh:float=None):
+    @slash_command(name='graph')
+    async def graph(
+        self, ctx: AppCtx,
+        expression:Option(str, 'Enter an expression to graph, or a function name'),
+        xlow:Option(float, 'Enter lower x axis bound', required=False, default=-10),
+        xhigh:Option(float, 'Enter upper x axis bound', required=False, default=10),
+        ylow:Option(float, 'Enter lower y axis bound', required=False, default=None),
+        yhigh:Option(float, 'Enter upper y axis bound', required=False, default=None)
+    ):
+        """ Plot a 1-dimensional function on the xy plane. """
         await ctx.defer()
 
         trimmed = expression.replace(' ', '').lower()

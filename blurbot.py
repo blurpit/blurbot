@@ -61,8 +61,7 @@ class Blurbot(Bot):
     async def on_application_command_error(self, ctx:AppCtx, exception):
         exception = getattr(exception, 'original', exception)
 
-        # Error messages that start with will be ephemeral
-        await ctx.respond(str(exception))
+        await ctx.respond(str(exception), ephemeral=True)
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(exception), exception,
                                   exception.__traceback__, file=sys.stderr)
