@@ -365,7 +365,9 @@ class Calc(Cog):
     @slash_command(name='latex')
     async def latex(
         self, ctx:AppCtx,
-        expression:Option(str, 'Enter an expression, or LaTeX starting and ending with $')
+        expression:Option(str, 'Enter an expression, or LaTeX starting and ending with $'),
+        evaluate:Option(bool, 'If true, the expression will be evaluated first before being converted to LaTeX', required=False, default=False),
+        render:Option(bool, 'If true, render the expression as an image, otherwise print the text', required=False, default=True)
     ):
         """ Render an expression as a LaTeX image. """
         await ctx.defer()
@@ -373,16 +375,22 @@ class Calc(Cog):
             if expression.startswith('$') and expression.endswith('$'):
                 tex = expression.lstrip('$').rstrip('$')
             else:
+                if evaluate:
+                    expression = calc.evaluate(self.math_ctx, expression)
                 tex = calc.latex(self.math_ctx, expression)
-            img = calc.latex_to_image(tex, dpi=self.bot.cfg.calc.latex_dpi)
+            if render:
+                img = calc.latex_to_image(tex, dpi=self.bot.cfg.calc.latex_dpi)
 
         if timer.state == timer.TIMED_OUT:
             raise Calc.TimeoutError("Evaluation took too long.")
 
-        with BytesIO() as bio:
-            img.save(bio, format='png')
-            bio.seek(0)
-            await ctx.respond(file=File(bio, 'tex.png'))
+        if render:
+            with BytesIO() as bio:
+                img.save(bio, format='png')
+                bio.seek(0)
+                await ctx.respond(file=File(bio, 'tex.png'))
+        else:
+            await ctx.respond('```' + tex + '```')
 
     @slash_command(name='graph')
     async def graph(
