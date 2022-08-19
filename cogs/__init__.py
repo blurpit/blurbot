@@ -7,8 +7,8 @@ from io import BytesIO
 import calc
 import requests
 import stopit
-from discord import ApplicationContext as AppCtx, Option, Message, Member, VoiceChannel, ButtonStyle, Interaction, \
-    VoiceClient, VoiceState, File, ActivityType, Activity, Status, default_permissions, Permissions
+from discord import ApplicationContext as AppCtx, Message, Member, VoiceChannel, ButtonStyle, Interaction, \
+    VoiceClient, VoiceState, File, ActivityType, Activity, Status, default_permissions, Permissions, option
 from discord.commands import slash_command, SlashCommandGroup, message_command, user_command
 from discord.ext.commands import Cog
 from discord.ui import Button, View
@@ -26,7 +26,7 @@ def setup(bot):
     bot.add_cog(UrbanDictionary(bot))
     bot.add_cog(TicTacToe(bot))
     bot.add_cog(Voice(bot))
-    bot.add_cog(Calc(bot))
+    bot.add_cog(Calculator(bot))
 
 
 class Admin(Cog):
@@ -58,10 +58,8 @@ class Admin(Cog):
     )
 
     @cfg.command(name='get')
-    async def cfg_get(
-        self, ctx:AppCtx,
-        key:Option(str, 'Enter config key.')
-    ):
+    @option('key', str, description='Enter config key')
+    async def cfg_get(self, ctx:AppCtx, key):
         """ Get a configuration value. """
         val = self.bot.cfg[key]
         string = str(val)
@@ -70,11 +68,9 @@ class Admin(Cog):
         await ctx.respond('Key: `{}`\nType: `{}` ```{}```'.format(key, type(val), string))
 
     @cfg.command(name='set')
-    async def cfg_set(
-        self, ctx:AppCtx,
-        key:Option(str, 'Enter config key. Use append/remove/removei for list manipulation.'),
-        val:Option(str, 'Enter value to set at the key')
-    ):
+    @option('key', str, description='Enter config key. Use append/remove/removei for list manipulation.')
+    @option('val', str, description='Enter value to set at the key')
+    async def cfg_set(self, ctx:AppCtx, key, val):
         """ Set a configuration value. """
         val = self.bot.cfg.infer_type(val)
         self.bot.cfg[key] = val
@@ -89,12 +85,14 @@ class Admin(Cog):
 
     @slash_command(name='presence')
     @default_permissions(administrator=True)
-    async def presence(
-        self, ctx:AppCtx,
-        activity_type:Option(str, 'Enter activity type', choices=['playing', 'streaming', 'listening', 'watching',
-                                                                  'competing', 'online', 'offline', 'idle', 'dnd']),
-        name:Option(str, 'Enter presence text')
-    ):
+    @option(
+        'activity_type', str,
+        description='Enter activity type',
+        choices=['playing', 'streaming', 'listening', 'watching', 'competing',
+                 'online', 'offline', 'idle', 'dnd']
+    )
+    @option('name', str, description='Enter presence text')
+    async def presence(self, ctx:AppCtx, activity_type, name):
         """ Set the bot's presence. """
         if activity_type in ('online', 'offline', 'idle', 'dnd'):
             await self.bot.change_presence(status=Status[activity_type])
@@ -144,12 +142,10 @@ class Misc(Cog):
         await ctx.respond(content)
 
     @slash_command(name='roll')
-    async def roll(
-        self, ctx:AppCtx,
-        rolls:Option(int, 'Enter number of rolls to do', required=False, default=1),
-        low:Option(int, 'Enter lower bound', required=False, default=1),
-        high:Option(int, 'Enter upper bound', required=False, default=6)
-    ):
+    @option('rolls', int, description='Enter number of rolls to do', required=False, default=1)
+    @option('low', int, description='Enter lower bound', required=False, default=1)
+    @option('high', int, description='Enter upper bound', required=False, default=6)
+    async def roll(self, ctx:AppCtx, rolls, low, high):
         """ Roll random numbers. """
         if low > high:
             # Swap values if in wrong order
@@ -161,10 +157,8 @@ class Misc(Cog):
         await ctx.respond('🎲 ' + result)
 
     @slash_command(name='choose')
-    async def choose(
-        self, ctx:AppCtx,
-        choices:Option(str, 'List choices separated by commas')
-    ):
+    @option('choices', str, description='List choices separated by commas')
+    async def choose(self, ctx:AppCtx, choices):
         """ Choose a random option from a list of choices. """
         choice = random.choice(choices.split(',')).strip()
         await ctx.respond('I choose... **{}**!'.format(choice))
@@ -189,10 +183,8 @@ class UrbanDictionary(Cog):
         self.bot = bot
 
     @slash_command(name='ud')
-    async def ud(
-        self, ctx:AppCtx,
-        term:Option(str, 'Enter word to define')
-    ):
+    @option('term', str, description='Enter term to define')
+    async def ud(self, ctx:AppCtx, term):
         """ Command totally not shamelessly stolen from deadbeef. """
         data = requests.get('https://api.urbandictionary.com/v0/define?term={}'.format(term)).json()['list']
         if not data:
@@ -242,11 +234,9 @@ class Voice(Cog):
             await interaction.response.edit_message(view=self.view)
 
     @voice.command(name='play')
-    async def voice_play(
-        self, ctx: AppCtx,
-        query:Option(str, 'Enter a YouTube URL or search query.'),
-        channel:Option(VoiceChannel, 'Voice channel', required=False)
-    ):
+    @option('query', str, description='Enter a YouTube URL or search query')
+    @option('channel', VoiceChannel, description='Voice channel', required=False)
+    async def voice_play(self, ctx: AppCtx, query, channel):
         """ Play audio from a YouTube video in a voice channel. """
         await ctx.defer()
 
@@ -329,7 +319,7 @@ class Voice(Cog):
         self.bot.loop.create_task(disconnect_task())
 
 
-class Calc(Cog):
+class Calculator(Cog):
     def __init__(self, bot):
         self.bot = bot
         self.math_ctx = calc.create_default_context()
@@ -344,10 +334,8 @@ class Calc(Cog):
         calc.save_contexts(self.math_ctx, 'data/saved_math.json')
 
     @slash_command(name='calc')
-    async def evaluate(
-        self, ctx:AppCtx,
-        expression:Option(str, 'Enter an expression to evaluate')
-    ):
+    @option('expression', str, description='Enter an expression to evaluate')
+    async def evaluate(self, ctx:AppCtx, expression):
         """ Evaluate an expression. """
         await ctx.defer()
         with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
@@ -358,17 +346,15 @@ class Calc(Cog):
                 self.save()
 
         if timer.state == timer.TIMED_OUT:
-            raise Calc.TimeoutError("Evaluation took too long.")
+            raise self.TimeoutError("Evaluation took too long.")
 
         await ctx.respond("> `{}`\n```{}```".format(expression, result))
 
     @slash_command(name='latex')
-    async def latex(
-        self, ctx:AppCtx,
-        expression:Option(str, 'Enter an expression, or LaTeX starting and ending with $'),
-        evaluate:Option(bool, 'If true, the expression will be evaluated first before being converted to LaTeX', required=False, default=False),
-        render:Option(bool, 'If true, render the expression as an image, otherwise print the text', required=False, default=True)
-    ):
+    @option('expression', str, description='Enter an expression, or LaTeX starting and ending with $')
+    @option('evaluate', bool, description='If true, the expression will be evaluated first before being converted to LaTeX', required=False, default=False)
+    @option('render', bool, description='If true, render the expression as an image, otherwise print the text', required=False, default=True)
+    async def latex(self, ctx:AppCtx, expression, evaluate, render):
         """ Render an expression as a LaTeX image. """
         await ctx.defer()
         with stopit.ThreadingTimeout(self.bot.cfg.calc.timeout) as timer:
@@ -382,7 +368,7 @@ class Calc(Cog):
                 img = calc.latex_to_image(tex, dpi=self.bot.cfg.calc.latex_dpi)
 
         if timer.state == timer.TIMED_OUT:
-            raise Calc.TimeoutError("Evaluation took too long.")
+            raise self.TimeoutError("Evaluation took too long.")
 
         if render:
             with BytesIO() as bio:
@@ -393,14 +379,12 @@ class Calc(Cog):
             await ctx.respond('```' + tex + '```')
 
     @slash_command(name='graph')
-    async def graph(
-        self, ctx: AppCtx,
-        expression:Option(str, 'Enter an expression to graph, or a function name'),
-        xlow:Option(float, 'Enter lower x axis bound', required=False, default=-10),
-        xhigh:Option(float, 'Enter upper x axis bound', required=False, default=10),
-        ylow:Option(float, 'Enter lower y axis bound', required=False, default=None),
-        yhigh:Option(float, 'Enter upper y axis bound', required=False, default=None)
-    ):
+    @option('expression', str, description='Enter an expression to graph, or a function name')
+    @option('xlow', float, description='Enter lower x axis bound', required=False, default=-10)
+    @option('xhigh', float, description='Enter upper x axis bound', required=False, default=10)
+    @option('ylow', float, description='Enter lower y axis bound', required=False, default=None)
+    @option('yhigh', float, description='Enter upper y axis bound', required=False, default=None)
+    async def graph(self, ctx: AppCtx, expression, xlow, xhigh, ylow, yhigh):
         """ Plot a 1-dimensional function on the xy plane. """
         await ctx.defer()
 
@@ -419,6 +403,6 @@ class Calc(Cog):
             bio = calc.savefig_bytesio(fig)
 
         if timer.state == timer.TIMED_OUT:
-            raise Calc.TimeoutError("Evaluation took too long.")
+            raise self.TimeoutError("Evaluation took too long.")
 
         await ctx.respond(file=File(bio, 'graph.png'))
