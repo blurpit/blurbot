@@ -1,4 +1,5 @@
 import asyncio
+import os
 import random
 import sys
 import traceback
@@ -74,13 +75,13 @@ class Admin(Cog):
         """ Set a configuration value. """
         val = self.bot.cfg.infer_type(val)
         self.bot.cfg[key] = val
-        self.bot.cfg.save()
+        self.bot.cfg.save('BLURBOT_CONFIG')
         await ctx.respond('Key: `{}`\nType: `{}` ```{}```'.format(key, type(val), val))
 
     @cfg.command(name='reload')
     async def cfg_reload(self, ctx:AppCtx):
         """ Reload the configuration from the file. """
-        self.bot.cfg.reload()
+        self.bot.cfg.reload('BLURBOT_CONFIG')
         await ctx.respond('Config reloaded from `{}`'.format(self.bot.cfg.fp))
 
     @slash_command(name='presence')
@@ -329,11 +330,13 @@ class Calculator(Cog):
         pass
 
     def load(self):
-        calc.load_contexts(self.math_ctx, 'data/saved_math.json')
+        calc.load_contexts(self.math_ctx, os.environ['BLURBOT_SAVED_MATH'])
     def save(self):
-        calc.save_contexts(self.math_ctx, 'data/saved_math.json')
+        os.environ['BLURBOT_SAVED_MATH'] = calc.save_contexts(self.math_ctx)
 
-    @slash_command(name='calc')
+    group = SlashCommandGroup('calc', 'Play audio in a voice channel.')
+
+    @group.command(name='eval')
     @option('expression', str, description='Enter an expression to evaluate')
     async def evaluate(self, ctx:AppCtx, expression):
         """ Evaluate an expression. """
@@ -350,7 +353,7 @@ class Calculator(Cog):
 
         await ctx.respond("> `{}`\n```{}```".format(expression, result))
 
-    @slash_command(name='latex')
+    @group.command(name='latex')
     @option('expression', str, description='Enter an expression, or LaTeX starting and ending with $')
     @option('evaluate', bool, description='If true, the expression will be evaluated first before being converted to LaTeX', required=False, default=False)
     @option('render', bool, description='If true, render the expression as an image, otherwise print the text', required=False, default=True)
@@ -378,7 +381,7 @@ class Calculator(Cog):
         else:
             await ctx.respond('```' + tex + '```')
 
-    @slash_command(name='graph')
+    @group.command(name='graph')
     @option('expression', str, description='Enter an expression to graph, or a function name')
     @option('xlow', float, description='Enter lower x axis bound', required=False, default=-10)
     @option('xhigh', float, description='Enter upper x axis bound', required=False, default=10)

@@ -1,16 +1,13 @@
 import json
+import os
 import random
 
 from discord import Message, Activity, ActivityType
 
 
 class Config(dict):
-    def __init__(self, *, loads:dict=None, fp=None):
+    def __init__(self, loads:dict=None):
         super().__init__()
-        if fp:
-            self.fp = fp
-            with open(fp, 'r') as f:
-                loads = json.loads(f.read())
         if loads:
             for key, value in loads.items():
                 self._recursive_add(key, value)
@@ -51,15 +48,12 @@ class Config(dict):
         else:
             self[key] = value
 
-    def save(self):
-        if getattr(self, 'fp', None):
-            with open(self.fp, 'w') as f:
-                f.write(json.dumps(self, indent=4))
+    def save(self, env_var_name):
+        os.environ[env_var_name] = json.dumps(self)
 
-    def reload(self):
-        fp = self.fp
+    def reload(self, env_var_name):
         self.clear()
-        self.__init__(fp=fp)
+        self.__init__(loads=json.loads(os.environ[env_var_name]))
 
     @staticmethod
     def infer_type(val:str):

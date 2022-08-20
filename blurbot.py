@@ -14,7 +14,8 @@ from util import Config, render_egg, get_presence
 
 class Blurbot(Bot):
     def __init__(self):
-        self.cfg = Config(fp='data/config.json')
+        self.cfg = Config()
+        self.cfg.reload('BLURBOT_CONFIG')
         intents = Intents.default()
         intents.members = True
         intents.message_content = True
