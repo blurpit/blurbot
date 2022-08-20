@@ -61,7 +61,10 @@ class Blurbot(Bot):
     async def on_application_command_error(self, ctx:AppCtx, exception):
         exception = getattr(exception, 'original', exception)
 
-        await ctx.respond(str(exception), ephemeral=True)
+        text = str(exception)
+        if len(text) > 2000:
+            text = text[:1997] + '...'
+        await ctx.respond(text, ephemeral=True)
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(exception), exception,
                                   exception.__traceback__, file=sys.stderr)
