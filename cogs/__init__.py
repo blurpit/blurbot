@@ -209,7 +209,7 @@ class TicTacToe(Cog):
     async def tictactoe(self, ctx:AppCtx, user:Member):
         """ Start a game of TicTacToe. """
         if user.bot:
-            raise ValueError("Tic tac toe AI is broken right now. :/")
+            raise NotImplementedError("Tic tac toe AI is broken right now. :/")
         await ctx.respond(
             "{}, it's your turn!".format(ctx.author.mention),
             view=tictactoe.TicTacToe(ctx.author, user, ai_game=user == self.bot.user)
@@ -219,6 +219,9 @@ class TicTacToe(Cog):
 class Voice(Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    class VoiceError(Exception):
+        pass
 
     voice = SlashCommandGroup('voice', 'Play audio in a voice channel.')
 
@@ -246,8 +249,8 @@ class Voice(Cog):
 
         max_duration = self.bot.cfg.voice.max_video_duration
         if 0 < max_duration < player.duration_seconds:
-            raise RuntimeError("Error: {}\nVideo exceeded maximum duration ({})."
-                               .format(player.video_info, duration_string(max_duration)))
+            raise self.VoiceError("Error: {}\nVideo exceeded maximum duration ({})."
+                                  .format(player.video_info, duration_string(max_duration)))
 
         def after(e):
             if e: traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
@@ -268,13 +271,13 @@ class Voice(Cog):
             await vc.disconnect()
             await ctx.respond('Disconnected from {}.'.format(mention))
         else:
-            raise RuntimeError("Nothing is playing right now.")
+            raise self.VoiceError("Nothing is playing right now.")
 
     @Cog.listener()
     async def on_voice_state_update(self, member:Member, before:VoiceState, after:VoiceState):
         if before.channel != after.channel:
             vc:VoiceClient = get(self.bot.voice_clients, guild=member.guild)
-            if vc is not None and all(m.bot for m in vc.channel.members):
+            if vc and all(m.bot for m in vc.channel.members):
                 await vc.disconnect(force=False)
 
     @Cog.listener()
@@ -289,10 +292,10 @@ class Voice(Cog):
             vc:VoiceClient = ctx.voice_client
             if self.bot.cfg.voice.force_connected and not (ctx.author.voice and ctx.author.voice.channel == channel):
                 # User is not connected to the requested channel.
-                raise RuntimeError("You aren't connected to {}.".format(channel.mention))
+                raise self.VoiceError("You aren't connected to {}.".format(channel.mention))
             if all(m.bot for m in channel.members):
                 # Don't play to bots or to nobody
-                raise RuntimeError("{} has no connected users.".format(channel.mention))
+                raise self.VoiceError("{} has no connected users.".format(channel.mention))
             if vc is None:
                 # Not connected to a voice channel, connect
                 await channel.connect()
@@ -308,14 +311,15 @@ class Voice(Cog):
                 await self.ensure_voice(ctx, channel=ctx.author.voice.channel)
             else:
                 # No channel was given and the author is not connected to a voice channel, raise error
-                raise RuntimeError("You aren't connected to a voice channel.")
+                raise self.VoiceError("You aren't connected to a voice channel.")
 
     def disconnect_voice(self, ctx:AppCtx, delay=0):
         async def disconnect_task():
             vc:VoiceClient = ctx.voice_client
             if delay:
                 await asyncio.sleep(delay)
-            await vc.disconnect()
+            if vc:
+                await vc.disconnect()
 
         self.bot.loop.create_task(disconnect_task())
 
