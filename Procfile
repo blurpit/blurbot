@@ -1,1 +1,1 @@
-worker: python3 blurbot.py
+worker: python blurbot.py
