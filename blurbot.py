@@ -62,7 +62,7 @@ class Blurbot(Bot):
     async def on_application_command_error(self, ctx:AppCtx, exception):
         exception = getattr(exception, 'original', exception)
 
-        text = '```{}: {}```'.format(type(exception.__name__), str(exception))
+        text = '```{}: {}```'.format(type(exception).__name__, str(exception))
         if len(text) > 1997:
             text = text[:1994] + '...```'
         await ctx.respond(text, ephemeral=True)
