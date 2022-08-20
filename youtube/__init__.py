@@ -1,7 +1,7 @@
 import asyncio
 
 from discord import PCMVolumeTransformer, FFmpegPCMAudio
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 
 _ytdl_format_options = dict(
     format='bestaudio/best',

@@ -1,7 +1,7 @@
 requests
 PyNaCl
 Pillow
-youtube-dl
+yt-dlp
 mpmath
 SQLAlchemy
 matplotlib
