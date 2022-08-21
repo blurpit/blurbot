@@ -3,6 +3,8 @@ import asyncio
 from discord import PCMVolumeTransformer, FFmpegPCMAudio
 from yt_dlp import YoutubeDL
 
+from util import VoiceError
+
 _ytdl_format_options = dict(
     format='bestaudio/best',
     outtmpl='%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -45,9 +47,10 @@ class TYDLSource(PCMVolumeTransformer):
             None, lambda: ytdl.extract_info('ytsearch:' + query, download=not stream)
         )
 
-        if 'entries' in data:
-            data = data['entries'][0]
+        if 'entries' not in data or not data['entries']:
+            raise VoiceError('No results for "{}"'.format(query))
 
+        data = data['entries'][0]
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(FFmpegPCMAudio(filename, **_ffmpeg_options), data=data)
 

@@ -204,3 +204,7 @@ def render_egg(egg, msg:Message):
 
 def get_presence(presence):
     return Activity(type=ActivityType[presence.activity], name=presence.name)
+
+
+class VoiceError(Exception):
+    pass

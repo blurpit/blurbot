@@ -16,7 +16,7 @@ from discord.utils import get
 
 import garfield
 import tictactoe
-from util import create_storage
+from util import create_storage, VoiceError
 from youtube import TYDLSource, duration_string
 
 
@@ -220,9 +220,6 @@ class Voice(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    class VoiceError(Exception):
-        pass
-
     voice = SlashCommandGroup('voice', 'Play audio in a voice channel.')
 
     class StopButton(Button):
@@ -249,7 +246,7 @@ class Voice(Cog):
 
         max_duration = self.bot.cfg.voice.max_video_duration
         if 0 < max_duration < player.duration_seconds:
-            raise self.VoiceError("Error: {}\nVideo exceeded maximum duration ({})."
+            raise VoiceError("Error: {}\nVideo exceeded maximum duration ({})."
                                   .format(player.video_info, duration_string(max_duration)))
 
         def after(e):
@@ -271,7 +268,7 @@ class Voice(Cog):
             await vc.disconnect()
             await ctx.respond('Disconnected from {}.'.format(mention))
         else:
-            raise self.VoiceError("Nothing is playing right now.")
+            raise VoiceError("Nothing is playing right now.")
 
     @Cog.listener()
     async def on_voice_state_update(self, member:Member, before:VoiceState, after:VoiceState):
@@ -292,10 +289,10 @@ class Voice(Cog):
             vc:VoiceClient = ctx.voice_client
             if self.bot.cfg.voice.force_connected and not (ctx.author.voice and ctx.author.voice.channel == channel):
                 # User is not connected to the requested channel.
-                raise self.VoiceError("You aren't connected to {}.".format(channel.mention))
+                raise VoiceError("You aren't connected to {}.".format(channel.mention))
             if all(m.bot for m in channel.members):
                 # Don't play to bots or to nobody
-                raise self.VoiceError("{} has no connected users.".format(channel.mention))
+                raise VoiceError("{} has no connected users.".format(channel.mention))
             if vc is None:
                 # Not connected to a voice channel, connect
                 await channel.connect()
@@ -311,7 +308,7 @@ class Voice(Cog):
                 await self.ensure_voice(ctx, channel=ctx.author.voice.channel)
             else:
                 # No channel was given and the author is not connected to a voice channel, raise error
-                raise self.VoiceError("You aren't connected to a voice channel.")
+                raise VoiceError("You aren't connected to a voice channel.")
 
     def disconnect_voice(self, ctx:AppCtx, delay=0):
         async def disconnect_task():
@@ -331,9 +328,6 @@ class Calculator(Cog):
         self.saved_math = create_storage('saved_math')
         self.load()
         print('Saved math loaded using {}'.format(self.saved_math))
-
-    class TimeoutError(Exception):
-        pass
 
     def load(self):
         calc.load_contexts(self.math_ctx, self.saved_math.load().get('contexts', [{}]))
@@ -356,7 +350,7 @@ class Calculator(Cog):
                 self.save()
 
         if timer.state == timer.TIMED_OUT:
-            raise self.TimeoutError("Evaluation took too long.")
+            raise TimeoutError("Evaluation took too long.")
 
         await ctx.respond("> `{}`\n```{}```".format(expression, result))
 
@@ -378,7 +372,7 @@ class Calculator(Cog):
                 img = calc.latex_to_image(tex, dpi=self.bot.cfg.calc.latex_dpi)
 
         if timer.state == timer.TIMED_OUT:
-            raise self.TimeoutError("Evaluation took too long.")
+            raise TimeoutError("Evaluation took too long.")
 
         if render:
             with BytesIO() as bio:
@@ -413,6 +407,6 @@ class Calculator(Cog):
             bio = calc.savefig_bytesio(fig)
 
         if timer.state == timer.TIMED_OUT:
-            raise self.TimeoutError("Evaluation took too long.")
+            raise TimeoutError("Evaluation took too long.")
 
         await ctx.respond(file=File(bio, 'graph.png'))
