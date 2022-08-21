@@ -2,10 +2,9 @@ requests
 PyNaCl
 Pillow
 yt-dlp
-mpmath
-SQLAlchemy
 matplotlib
 numpy
 py-cord[voice]
 stopit
+pymongo[srv]
 git+https://github.com/blurpit/pycalculator.git
