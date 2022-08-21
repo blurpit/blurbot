@@ -1,5 +1,4 @@
 import asyncio
-import os
 import random
 import sys
 import traceback
@@ -17,6 +16,7 @@ from discord.utils import get
 
 import garfield
 import tictactoe
+from util import create_storage
 from youtube import TYDLSource, duration_string
 
 
@@ -75,13 +75,13 @@ class Admin(Cog):
         """ Set a configuration value. """
         val = self.bot.cfg.infer_type(val)
         self.bot.cfg[key] = val
-        self.bot.cfg.save('BLURBOT_CONFIG')
+        self.bot.cfg.save()
         await ctx.respond('Key: `{}`\nType: `{}` ```{}```'.format(key, type(val), val))
 
     @cfg.command(name='reload')
     async def cfg_reload(self, ctx:AppCtx):
         """ Reload the configuration from the file. """
-        self.bot.cfg.reload('BLURBOT_CONFIG')
+        self.bot.cfg.reload()
         await ctx.respond('Config reloaded from `{}`'.format(self.bot.cfg.fp))
 
     @slash_command(name='presence')
@@ -328,15 +328,18 @@ class Calculator(Cog):
     def __init__(self, bot):
         self.bot = bot
         self.math_ctx = calc.create_default_context()
+        self.saved_math = create_storage('saved_math')
         self.load()
+        print('Saved math loaded using {}'.format(self.saved_math))
 
     class TimeoutError(Exception):
         pass
 
     def load(self):
-        calc.load_contexts(self.math_ctx, os.environ['BLURBOT_SAVED_MATH'])
+        calc.load_contexts(self.math_ctx, self.saved_math.load().get('contexts', [{}]))
     def save(self):
-        os.environ['BLURBOT_SAVED_MATH'] = calc.save_contexts(self.math_ctx)
+        data = {'contexts': calc.dump_contexts(self.math_ctx)}
+        self.saved_math.save(data)
 
     group = SlashCommandGroup('calc', 'Play audio in a voice channel.')
 

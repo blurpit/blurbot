@@ -9,16 +9,18 @@ from discord import Intents
 from discord.ext.commands import Bot
 
 import cogs
-from util import Config, render_egg, get_presence
+from util import Config, render_egg, get_presence, create_storage
 
 
 class Blurbot(Bot):
     def __init__(self):
-        self.cfg = Config()
-        self.cfg.reload('BLURBOT_CONFIG')
+        self.cfg = Config(create_storage('config'))
+        print('Config loaded using {}'.format(self.cfg.storage))
+
         intents = Intents.default()
         intents.members = True
         intents.message_content = True
+
         super().__init__(
             intents=intents,
             owner_ids=self.cfg.admins,

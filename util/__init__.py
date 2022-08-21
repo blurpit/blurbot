@@ -1,13 +1,17 @@
 import json
 import os
 import random
+from pymongo import MongoClient
 
 from discord import Message, Activity, ActivityType
 
 
 class Config(dict):
-    def __init__(self, loads:dict=None):
+    def __init__(self, storage_interface=None, loads=None):
         super().__init__()
+        if storage_interface and not loads:
+            super().__setattr__('storage', storage_interface)
+            loads = storage_interface.load()
         if loads:
             for key, value in loads.items():
                 self._recursive_add(key, value)
@@ -48,12 +52,12 @@ class Config(dict):
         else:
             self[key] = value
 
-    def save(self, env_var_name):
-        os.environ[env_var_name] = json.dumps(self)
+    def save(self):
+        self.storage.save(self)
 
-    def reload(self, env_var_name):
+    def reload(self):
         self.clear()
-        self.__init__(loads=json.loads(os.environ[env_var_name]))
+        self.__init__(self.storage)
 
     @staticmethod
     def infer_type(val:str):
@@ -72,7 +76,7 @@ class Config(dict):
         return val
 
 class ConfigList(list):
-    def __init__(self, *, loads:list=None):
+    def __init__(self, loads:list=None):
         super().__init__()
         if loads:
             for value in loads:
@@ -81,7 +85,7 @@ class ConfigList(list):
     def __getitem__(self, keylist):
         if keylist == '.':
             return self
-        elif isinstance(keylist, int):
+        elif isinstance(keylist, (int, slice)):
             return super().__getitem__(keylist)
 
         keylist = keylist.split('.', 1)
@@ -117,6 +121,79 @@ class ConfigList(list):
             self.append(ConfigList(loads=value))
         else:
             self.append(value)
+
+class FileStorage:
+    def __init__(self, fp):
+        self.fp = fp
+
+    def save(self, data):
+        with open(self.fp, 'w') as f:
+            f.write(json.dumps(data))
+
+    def load(self):
+        with open(self.fp, 'r') as f:
+            return json.loads(f.read())
+
+    def __str__(self):
+        return '<FileStorage @{}>'.format(self.fp)
+
+class HerokuConfigVarsStorage:
+    def __init__(self, var_name, secret):
+        self.var_name = var_name
+        self.secret = secret
+        raise NotImplementedError
+
+    def save(self, data):
+        pass
+
+    def load(self):
+        pass
+
+    def __str__(self):
+        return '<HerokuConfigVarsStorage @{}>'.format(self.var_name)
+
+class MongoStorage:
+    collection = None
+
+    def __init__(self, user, secret, _id):
+        if MongoStorage.collection is None:
+            # Reuse blurbot collection client for other MongoStorage instances
+            MongoStorage.collection = MongoClient(
+                "mongodb+srv://{}:{}@cluster0.cbjbjyq.mongodb.net/?retryWrites=true&w=majority"
+                .format(user, secret)
+            )['discord']['blurbot']
+        self._id = _id
+
+    def save(self, data):
+        data['_id'] = self._id
+        self.collection.update_one(
+            {'_id': self._id}, {'$set': data},
+            upsert=True
+        )
+
+    def load(self):
+        return self.collection.find_one({'_id': self._id}) or {}
+
+    def __str__(self):
+        return '<MongoStorage {} @{}>'.format(self._id, self.collection.name)
+
+def create_storage(label):
+    storage_type = os.environ['BLURBOT_STORAGE_INTERFACE']
+    if storage_type == 'file':
+        return FileStorage(os.environ['FILEPATH_' + label.upper()])
+    elif storage_type == 'heroku':
+        return HerokuConfigVarsStorage(
+            os.environ['HEROKU_VARNAME_' + label.upper()],
+            os.environ['HEROKU_SECRET']
+        )
+    elif storage_type == 'mongo':
+        return MongoStorage(
+            os.environ['MONGO_USER'],
+            os.environ['MONGO_SECRET'],
+            label
+        )
+    else:
+        raise ValueError('Invalid storage interface: ' + storage_type)
 
 
 def render_egg(egg, msg:Message):
